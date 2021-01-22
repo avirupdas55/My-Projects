@@ -1,0 +1,250 @@
+---
+title: "Modeling and prediction for movies"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+library(GGally)
+library(gridExtra)
+```
+
+### Load data
+
+```{r load-data}
+load("movies.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+The movies data-set gathers data on movies and a few attributes about its structure, like movie length in minutes, release day, month and year, MPAA rating, and so on. Besides these variables, there are a few columns of interest regarding the movie evaluation, such as the Internet Movie Database - IMDB rating, critics rating and audience ratings. The goal of this project is to bring a perspective in one of these classifications, the IMDB ratings, and its relationship with the other variables in the data-set, excluding the other variables of interest.
+
+For this project, it is essential to state the following points:-
+
+i) The original data-set about each movie’s score was taken from both the IMDb and Rotten Tomatoes database. Characteristics of the site user community influence trends in specific movie scores, thus this results can be generalized to the whole population.
+
+ii) This article was an observational study. There is no causation can be established because  random assignment is not used in this study.
+In this study, I will assume some voting results about a film on website A could be used to predict the same movie’s score on website B. However, in the real world the score for the same movie occurs at the same time on two sites A and B.
+
+* * *
+
+## Part 2: Research question
+
+A few features regarding the movie can influence how people perceive the movie. These features not only include genre and run-time, but also consider facts like whether the movie was in the Top 200 Box Office list on BoxOfficeMojo.
+
+What are the factors/variables that influence the IMDb ratings received by a movie from the audience? To what extent are these factors significant in predicting the IMDb score of a movie?
+
+This question is important for us because it is important for online streaming services to predict ratings based on these factors. So, they can accordingly invest in contents meeting certain conditions.
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+Let us consider the following variables for constructing a multiple linear regression (MLR) model,
+
+genre: Genre of the movie
+
+runtime: Runtime of movie (in movies)
+
+mpaa_rating: MPAA rating of the movie (G, PG, PG-13, R)
+
+critics_score: Critics score on Rotten Tomatoes
+
+audience_score: Audience score on Rotten Tomatoes
+
+best_pic_nom: Whether or not the movie was nominated for a best picture
+
+best_pic_win: Whether or not the movie won a best picture Oscar
+
+top200_box: Whether or not the movie is in the Top 200 Box Office list on BoxOfficeMojo
+
+best_actor_win: Whether or not one of the main actors in the movie ever won an Oscar
+
+best_actress_win: Whether or not one of the main actresses in the movie ever won an Oscar
+
+We will use the above variables to try and predict the variable imdb_rating using Multiple Linear Regression model.
+
+First let us clean the model of observations having missing values
+
+```{r}
+stats <- movies %>% filter(!is.na(genre) & !is.na(runtime) & !is.na(mpaa_rating) & !is.na(critics_score) & !is.na(audience_score) & !is.na(best_pic_nom) & !is.na(best_pic_win) & !is.na(top200_box) & !is.na(best_actor_win) & !is.na(best_actress_win) & !is.na(imdb_rating))
+```
+
+Note that there is a single observation which has a missing value of one of the variables of our interest. Now, we move on to visualizing the data of IMDb scores based on these factors. 
+
+```{r}
+p1 <- ggplot(data = stats, aes(x=mpaa_rating, y=imdb_rating))+geom_boxplot()
+p2 <-  ggplot(data=stats, aes(x=runtime, y=imdb_rating, colour=  audience_score))+geom_jitter(aes(alpha=I(0.6)))
+grid.arrange(p1,p2, ncol=2)
+
+```
+
+We can see that 'G' rated movies tend to get a higher IMDb score, followed by movies rated 'NC-17', then with a close tie between 'PG' and 'R' rated movies, and then the 'PG-13' rated movies getting the lowest IMDb score.
+
+Also, it is to be noted that there is no clear relation between runtime and IMDb score. Although it can be said that audience score is always reliable because there are considerable number of observations with High Audience Score but low IMDb score and vice versa.
+
+
+```{r}
+p1<-ggplot(data=stats, aes(x=best_pic_nom, y=imdb_rating))+geom_jitter(aes(colour=audience_score, alpha=I(0.6)))
+p2<- ggplot(data=stats, aes(x=best_pic_win, y=imdb_rating))+geom_jitter(aes(colour= critics_score, alpha=I(0.6)))
+grid.arrange(p1,p2, ncol=2)
+
+```
+
+From the above graph we can say that the movies which have been nominated for best picture or won the award for best picture have moderate to high IMDb score. In fact, while comparing the two graphs it can be observed that the movies which were nominated and received a moderate IMDb score did not win the prize at the end.
+
+```{r}
+ggplot(data=stats, aes(y=imdb_rating, colour=critics_rating))+geom_boxplot()+facet_grid(.~genre, scale="free")
+
+```
+
+It can be concluded from the above facet that the Horror genre gets the lowest IMDb rating on an average. So that genre is pretty risky for production houses to invest into. While genres like Drama, Documentary, Comedy and Action and Adventure are good sectors for investing.
+
+```{r}
+ ggplot(data=stats, aes(x=top200_box, y=imdb_rating))+geom_jitter(aes(colour=audience_score, alpha=I(0.6)))
+
+```
+
+It can be said that bagging a place in the Top 200 Box Office does not necessarily ensure a good IMDb rating. In some observations we even see that the Audience have given a less score to the movies in the Top 200 Box Office list. 
+
+```{r}
+p1<- ggplot(data=stats, aes(x=best_actor_win, y=imdb_rating))+geom_jitter(aes(colour=critics_score, alpha=I(0.6)))
+p2<- ggplot(data=stats, aes(x=best_actress_win, y=imdb_rating))+geom_jitter(aes(colour=audience_score, alpha=I(0.6)))
+grid.arrange(p1,p2, ncol=2)
+```
+
+Finally let us discuss about the influence of stardom of the main actors and actresses on the IMDb score of the movie they were featured in. It can be observed that featuring an Oscar winning actor doesn't save a bad movie from receiving a low IMDb score. So, is the case for featuring an Oscar winning actress, although the lowest score is comparatively greater then the former category.
+
+* * *
+
+## Part 4: Modeling
+
+Now let us form the multiple linear regression model using all the variables we have analyzed in the Exploratory Data Analysis. We use the method of backward elimination based on p-values.
+
+```{r}
+model <- lm(imdb_rating ~ genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+top200_box+best_actor_win+best_actress_win,data=stats)
+summary(model)
+```
+
+The variable top200_box has the highest p-value and thus it bears the least statistical significance. So, we refit the MLR model without that variable.
+
+```{r}
+model <- lm(imdb_rating ~ genre+runtime+mpaa_rating+critics_score+audience_score+best_pic_nom+best_pic_win+best_actor_win+best_actress_win,data=stats)
+summary(model)
+```
+
+We notice a slight increase in the adjusted R-square after removing the previous insignificant variable. Now, we remove the next least significant variables 'best_pic_nom', 'best_pic_win', 'best_actor_win', 'best_actress_win', 'mpaa_rating', 'top200_box'  with pretty high p-value.
+
+```{r}
+model <- lm(imdb_rating ~ genre+ runtime+critics_score+audience_score,data=stats)
+summary(model)
+```
+
+In the above model we see that some of the categories of the factor 'Genre' are pretty insignificant, but we retain the factor in our model because it has some levels which are statistically very significant with low p-values. This is our final MLR model. 
+
+Note that, if the Genre falls into the categories 'Animation', 'Comedy', 'Science Fiction and Fantasy' and 'Other', the predicted IMDb score tends to decrease (when all other factors are held constant), as the estimated slope coefficient of these factors are negative.
+
+Also, note that the coefficient of determination r-square is pretty high (also the Adjusted r-square), so 81.94% of the variability can be explained.
+
+### Checking conditions and Model Diagnostics
+
+Let us first check for collinearity between the explanatory variables using pairwise plot.
+
+```{r}
+ggpairs(data=stats, columns = c(13,3,4,16,18))
+```
+
+We do not see any collinearity between the explanatory variables because we have already removed the factors which are statistically insignificant and might show collinearity with the significant factors. Also, we had concluded that runtime has low correlation with IMDb score (as is evident from the graph above). But, we have kept the factor in the model because from the Regression table we obtained a pretty low p-value and thus conclude that it is statistically significant in the prediction of IMDb score.
+
+So, our final linear regression model is given by:-
+\[\begin{multline}
+IMDb\_score= 3.17-0.37genre:Ani +0.2genre:Art -0.14genre:Com\\+0.26genre:Doc +0.06genre:Dra +0.1genre:Horr+ 0.02genre:Mus \\+ 0.26genre:Mys + -0.06genre:Oth -.019genre:SciFi +0.005runtime \\+0.01crit+ 0.03aud
+\end{multline}\]
+
+Note: The model coefficients have already been interpreted. 
+
+#### Residuals vs Predicted
+
+```{r}
+ggplot(data=model, aes(x=.fitted, y=.resid))+geom_point()+geom_hline(yintercept = 0, linetype="dashed")+labs(x="Fitted Values", y="Residuals")
+```
+From the above plot we conclude that:-
+
+i) Points are randomly scattered around the x-axis showing no trends, indicating that the residuals are randomly distributed around 0. 
+
+ii) The points show constant variability indicating the residuals are almost homoskedastically distributed.
+
+### Histogram and QQ Plot of residuals
+
+```{r}
+p1<- ggplot(data=model, aes(x=.resid))+geom_histogram(binwidth = 0.25)+xlab("Residuals")
+p2 <- ggplot(data=model, aes(sample=.resid))+stat_qq()
+grid.arrange(p1,p2, ncol=2)
+```
+We see that the residuals are a bit negatively skewed from the histogram and Normal QQ plots respectively, but it is to be mentioned that the number of observations lying on the left tail is very less, so although this might result to some unnoticeable inaccuracies in the prediction, it shouldn't largely affect the predictive accuracy of our model.
+
+* * *
+
+## Part 5: Prediction
+
+For prediction, let us consider the movie "Silence" by Martin Scorsese, released in 2016.
+
+For our model, the required data are (source: Google) :-
+
+i) Genre: Drama
+
+ii) Runtime: 161 minutes
+
+iii) Critics Score: 83
+
+iv) Audience Score: 69
+
+Let us create a data frame for predicting the IMDb score of this movie.
+
+```{r}
+Silence <- data.frame(genre="Drama", runtime=161, critics_score=83, audience_score=69)
+```
+
+Now, we predict the IMDb score of this movie and also the interval of precision based on the available data.
+
+```{r}
+predict(model, Silence, interval = "prediction", level=0.95)
+```
+
+Note that, the observed IMDb score is 7.2 which is almost equal to the predicted value of 7.27. Thus, the fit is extremely good. The 95% confidence interval for this estimate is (6.36, 8.20). 
+
+So, we can say that the probabiliy that the above interval contains the IMDb score of a movie under the "Drama" genre, running for 161 minutes, with a Rotten Tomatoes Critic Score of 83% and an Audience Score of 69%,  is 0.95
+
+* * *
+
+## Part 6: Conclusion
+
+We have analyzed different factors so far to predict the IMDb scores and later ended up only 4 of them, because the others were statistically insignificant (judging from the p-values). We have used the backward reduction based on p-values. In some cases, it may be observed that in this process, the coefficient of determination (r-square) has decreased after removing the insignificant factors from the model, but in our model, the adjusted r-square was initially very high and then went up by a small amount after reduction, indicating that the factors removed could have caused collinearity.
+
+During the model selection we saw that the score has a low linear association with the run-time, but we still keep the factor in our model as it is statistically significant and we also see that the final model yields a pretty accurate prediction of the IMDb score, indicating that runtime is an important factor of our model. 
+
+Lastly, we can conclude by saying that there is a lot of research that can be done and the one explained in this project shows that we can accurately predict how people will rate (like) the movies from its general characteristics.
+
+
+***
+
+
+
+
+
+
+
